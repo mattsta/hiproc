@@ -18,7 +18,7 @@ pub struct Settings {
 
 impl Settings {
     /// Creates a new `Settings` struct by loading configuration from files.
-    /// 
+    ///
     /// Configuration is loaded in order of precedence:
     /// 1. Global config: ~/.config/hiproc/config.toml
     /// 2. Binary-adjacent config: <binary_dir>/hiproc.toml

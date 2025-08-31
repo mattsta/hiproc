@@ -29,9 +29,16 @@ fn test_resolve_passthrough_args() {
 #[test]
 fn test_resolve_mixed_args() {
     let template = "docker run -p {{PORT}}:80 my-image";
-    let args = vec!["PORT:8080".to_string(), "-d".to_string(), "--name=my-container".to_string()];
+    let args = vec![
+        "PORT:8080".to_string(),
+        "-d".to_string(),
+        "--name=my-container".to_string(),
+    ];
     let result = templating::resolve_arguments(template, &args).unwrap();
-    assert_eq!(result, "docker run -p 8080:80 my-image -d --name=my-container");
+    assert_eq!(
+        result,
+        "docker run -p 8080:80 my-image -d --name=my-container"
+    );
 }
 
 #[test]
@@ -40,5 +47,8 @@ fn test_resolve_missing_placeholder_fails() {
     let args = vec![];
     let result = templating::resolve_arguments(template, &args);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err().to_string(), "The following placeholder was not provided: {{MESSAGE}}");
+    assert_eq!(
+        result.unwrap_err().to_string(),
+        "The following placeholder was not provided: {{MESSAGE}}"
+    );
 }

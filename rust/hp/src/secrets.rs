@@ -28,8 +28,9 @@ pub fn resolve_secrets(command_string: &str) -> Result<String> {
         }
 
         // 2. If not in env, prompt the user securely
-        let secret_value = rpassword::prompt_password(format!("Enter value for secret '{}': ", secret_name))
-            .context("Failed to read secret from prompt")?;
+        let secret_value =
+            rpassword::prompt_password(format!("Enter value for secret '{}': ", secret_name))
+                .context("Failed to read secret from prompt")?;
         resolved_secrets.insert(secret_name.to_string(), secret_value.clone());
         final_command = final_command.replace(placeholder, &secret_value);
     }

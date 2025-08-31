@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -35,7 +35,13 @@ impl ApiClient {
     }
 
     /// Searches for commands on the server.
-    pub async fn get_commands(&self, query: &str, namespace: Option<&str>, user: Option<&str>, scope: Option<&str>) -> Result<Vec<Command>> {
+    pub async fn get_commands(
+        &self,
+        query: &str,
+        namespace: Option<&str>,
+        user: Option<&str>,
+        scope: Option<&str>,
+    ) -> Result<Vec<Command>> {
         let client = reqwest::Client::new();
         let mut query_params = vec![("q", query)];
         if let Some(ns) = namespace {
@@ -57,7 +63,14 @@ impl ApiClient {
     }
 
     /// Recalls a command from the server.
-    pub async fn recall_command(&self, namespace: &str, name: &str, user: &str, hostname: &str, cwd: &str) -> Result<Command> {
+    pub async fn recall_command(
+        &self,
+        namespace: &str,
+        name: &str,
+        user: &str,
+        hostname: &str,
+        cwd: &str,
+    ) -> Result<Command> {
         let client = reqwest::Client::new();
         let recall_request = RecallRequest {
             name,
@@ -73,7 +86,11 @@ impl ApiClient {
             .await?;
 
         if res.status() == 404 {
-            bail!("Command '{}' in namespace '{}' not found for the current context.", name, namespace);
+            bail!(
+                "Command '{}' in namespace '{}' not found for the current context.",
+                name,
+                namespace
+            );
         }
 
         Ok(res.error_for_status()?.json().await?)
@@ -97,7 +114,7 @@ impl ApiClient {
             .query(&[("user", user)])
             .send()
             .await?;
-        
+
         if res.status() == 404 {
             bail!("Command not found, or you don't have permission to delete it.");
         }
@@ -105,7 +122,12 @@ impl ApiClient {
         Ok(res.error_for_status()?.json().await?)
     }
     /// Updates a command on the server.
-    pub async fn update_command(&self, command_id: i32, user: &str, command_update: CommandUpdate) -> Result<Command> {
+    pub async fn update_command(
+        &self,
+        command_id: i32,
+        user: &str,
+        command_update: CommandUpdate,
+    ) -> Result<Command> {
         let client = reqwest::Client::new();
         let res = client
             .put(format!("{}/commands/{}", self.base_url, command_id))
@@ -132,8 +154,13 @@ impl ApiClient {
         Ok(res.error_for_status()?.json().await?)
     }
 
-/// Renames a command on the server.
-    pub async fn rename_command(&self, command_id: i32, user: &str, command_rename: CommandRename) -> Result<Command> {
+    /// Renames a command on the server.
+    pub async fn rename_command(
+        &self,
+        command_id: i32,
+        user: &str,
+        command_rename: CommandRename,
+    ) -> Result<Command> {
         let client = reqwest::Client::new();
         let res = client
             .patch(format!("{}/commands/{}", self.base_url, command_id))
@@ -159,7 +186,10 @@ impl ApiClient {
             .await?;
 
         if res.status() == 404 {
-            bail!("Command with ID {} not found or you don't have permission to access it.", command_id);
+            bail!(
+                "Command with ID {} not found or you don't have permission to access it.",
+                command_id
+            );
         }
 
         Ok(res.error_for_status()?.json().await?)
@@ -175,7 +205,10 @@ impl ApiClient {
             .await?;
 
         if res.status() == 404 {
-            bail!("Command with ID {} not found or you don't have permission to execute it.", command_id);
+            bail!(
+                "Command with ID {} not found or you don't have permission to execute it.",
+                command_id
+            );
         }
 
         Ok(res.error_for_status()?.json().await?)
@@ -191,7 +224,10 @@ impl ApiClient {
             .await?;
 
         if res.status() == 404 {
-            bail!("No command named '{}' found in the current context.", request.name);
+            bail!(
+                "No command named '{}' found in the current context.",
+                request.name
+            );
         }
 
         Ok(res.error_for_status()?.json().await?)
@@ -210,7 +246,10 @@ impl ApiClient {
     }
 
     /// Detect project context and get namespace suggestions.
-    pub async fn detect_project_context(&self, request: ProjectContextRequest) -> Result<ProjectContextResponse> {
+    pub async fn detect_project_context(
+        &self,
+        request: ProjectContextRequest,
+    ) -> Result<ProjectContextResponse> {
         let client = reqwest::Client::new();
         let res = client
             .post(format!("{}/project-context", self.base_url))
@@ -222,20 +261,27 @@ impl ApiClient {
     }
 
     /// Get commands similar to the specified command.
-    pub async fn get_similar_commands(&self, command_id: i32, limit: Option<i32>) -> Result<Vec<Command>> {
+    pub async fn get_similar_commands(
+        &self,
+        command_id: i32,
+        limit: Option<i32>,
+    ) -> Result<Vec<Command>> {
         let client = reqwest::Client::new();
         let mut url = format!("{}/commands/{}/similar", self.base_url, command_id);
-        
+
         if let Some(limit) = limit {
             url = format!("{}?limit={}", url, limit);
         }
-        
+
         let res = client.get(url).send().await?;
         Ok(res.error_for_status()?.json().await?)
     }
 
     /// Create an execution history record for analytics.
-    pub async fn create_execution_record(&self, execution: ExecutionHistoryCreate) -> Result<serde_json::Value> {
+    pub async fn create_execution_record(
+        &self,
+        execution: ExecutionHistoryCreate,
+    ) -> Result<serde_json::Value> {
         let client = reqwest::Client::new();
         let res = client
             .post(format!("{}/execution-history", self.base_url))
@@ -247,12 +293,16 @@ impl ApiClient {
     }
 
     /// Get execution analytics.
-    pub async fn get_execution_analytics(&self, user: Option<&str>, days: Option<i32>) -> Result<serde_json::Value> {
+    pub async fn get_execution_analytics(
+        &self,
+        user: Option<&str>,
+        days: Option<i32>,
+    ) -> Result<serde_json::Value> {
         let client = reqwest::Client::new();
         let url = format!("{}/analytics/execution", self.base_url);
         let mut params = Vec::new();
         let days_str;
-        
+
         if let Some(user) = user {
             params.push(("user", user));
         }
@@ -260,7 +310,7 @@ impl ApiClient {
             days_str = days.to_string();
             params.push(("days", days_str.as_str()));
         }
-        
+
         let res = client.get(url).query(&params).send().await?;
         Ok(res.error_for_status()?.json().await?)
     }

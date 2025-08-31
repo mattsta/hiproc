@@ -1,12 +1,12 @@
 #![cfg(test)]
 use super::api::{
-    ApiClient, NewCommand, Command, SuggestionsRequest, ProjectContextRequest, 
-    ProjectContextResponse, RecallByNameRequest, ExecutionHistoryCreate
+    ApiClient, Command, ExecutionHistoryCreate, NewCommand, ProjectContextRequest,
+    ProjectContextResponse, RecallByNameRequest, SuggestionsRequest,
 };
-use wiremock::{MockServer, Mock, ResponseTemplate};
-use wiremock::matchers::{method, path};
 use chrono::Utc;
 use serde_json::json;
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[tokio::test]
 async fn test_save_command() {
@@ -79,7 +79,9 @@ async fn test_recall_command() {
         .await;
 
     // Act
-    let result = client.recall_command("ns", "recall_test", "testuser", "host", "/tmp").await;
+    let result = client
+        .recall_command("ns", "recall_test", "testuser", "host", "/tmp")
+        .await;
 
     // Assert
     assert!(result.is_ok());
@@ -98,23 +100,21 @@ async fn test_get_suggestions() {
         project_type: Some("rust".to_string()),
         limit: 5,
     };
-    
-    let response_body = vec![
-        Command {
-            id: 1,
-            command_string: "cargo build".to_string(),
-            name: "build".to_string(),
-            namespace: "rust".to_string(),
-            user: Some("testuser".to_string()),
-            cwd: Some("/test/dir".to_string()),
-            hostname: Some("testhost".to_string()),
-            scope: "personal".to_string(),
-            created_at: Utc::now(),
-            last_used_at: Some(Utc::now()),
-            use_count: 5,
-            is_new: false,
-        }
-    ];
+
+    let response_body = vec![Command {
+        id: 1,
+        command_string: "cargo build".to_string(),
+        name: "build".to_string(),
+        namespace: "rust".to_string(),
+        user: Some("testuser".to_string()),
+        cwd: Some("/test/dir".to_string()),
+        hostname: Some("testhost".to_string()),
+        scope: "personal".to_string(),
+        created_at: Utc::now(),
+        last_used_at: Some(Utc::now()),
+        use_count: 5,
+        is_new: false,
+    }];
 
     Mock::given(method("POST"))
         .and(path("/suggestions"))
@@ -142,7 +142,7 @@ async fn test_detect_project_context() {
         directory_path: "/test/rust/project".to_string(),
         user: Some("testuser".to_string()),
     };
-    
+
     let response_body = ProjectContextResponse {
         detected_namespace: Some("rust-project".to_string()),
         project_type: Some("rust".to_string()),
@@ -175,23 +175,21 @@ async fn test_get_similar_commands() {
     let client = ApiClient::new(server.uri());
     let command_id = 123;
     let limit = 3;
-    
-    let response_body = vec![
-        Command {
-            id: 124,
-            command_string: "cargo test".to_string(),
-            name: "test".to_string(),
-            namespace: "rust".to_string(),
-            user: Some("testuser".to_string()),
-            cwd: Some("/test/dir".to_string()),
-            hostname: Some("testhost".to_string()),
-            scope: "personal".to_string(),
-            created_at: Utc::now(),
-            last_used_at: Some(Utc::now()),
-            use_count: 3,
-            is_new: false,
-        }
-    ];
+
+    let response_body = vec![Command {
+        id: 124,
+        command_string: "cargo test".to_string(),
+        name: "test".to_string(),
+        namespace: "rust".to_string(),
+        user: Some("testuser".to_string()),
+        cwd: Some("/test/dir".to_string()),
+        hostname: Some("testhost".to_string()),
+        scope: "personal".to_string(),
+        created_at: Utc::now(),
+        last_used_at: Some(Utc::now()),
+        use_count: 3,
+        is_new: false,
+    }];
 
     Mock::given(method("GET"))
         .and(path(format!("/commands/{}/similar", command_id)))
@@ -222,7 +220,7 @@ async fn test_recall_command_by_name() {
         namespace_hint: Some("rust".to_string()),
         scope_hint: Some("personal".to_string()),
     };
-    
+
     let response_body = Command {
         id: 1,
         command_string: "cargo build --release".to_string(),
@@ -269,7 +267,7 @@ async fn test_create_execution_record() {
         duration_ms: Some(1500),
         exit_code: Some(0),
     };
-    
+
     let response_body = json!({"id": 456, "created": true});
 
     Mock::given(method("POST"))
@@ -293,7 +291,7 @@ async fn test_get_execution_analytics() {
     // Arrange
     let server = MockServer::start().await;
     let client = ApiClient::new(server.uri());
-    
+
     let response_body = json!({
         "total_executions": 150,
         "unique_commands": 25,
@@ -316,7 +314,9 @@ async fn test_get_execution_analytics() {
         .await;
 
     // Act
-    let result = client.get_execution_analytics(Some("testuser"), Some(30)).await;
+    let result = client
+        .get_execution_analytics(Some("testuser"), Some(30))
+        .await;
 
     // Assert
     assert!(result.is_ok());
@@ -332,7 +332,7 @@ async fn test_execute_command_tracking() {
     let server = MockServer::start().await;
     let client = ApiClient::new(server.uri());
     let command_id = 123;
-    
+
     let response_body = Command {
         id: command_id,
         command_string: "echo 'test execution'".to_string(),
@@ -378,7 +378,9 @@ async fn test_error_handling_404() {
         .await;
 
     // Act
-    let result = client.recall_command("nonexistent", "command", "user", "host", "/tmp").await;
+    let result = client
+        .recall_command("nonexistent", "command", "user", "host", "/tmp")
+        .await;
 
     // Assert
     assert!(result.is_err());
@@ -392,7 +394,7 @@ async fn test_similar_commands_empty_result() {
     let server = MockServer::start().await;
     let client = ApiClient::new(server.uri());
     let command_id = 999;
-    
+
     let response_body: Vec<Command> = vec![];
 
     Mock::given(method("GET"))

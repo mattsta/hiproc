@@ -1,5 +1,5 @@
 //! Handles the parsing and substitution of runtime arguments into command templates.
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use regex::Regex;
 
 /// A structure to hold the result of parsing user-provided arguments.
@@ -24,7 +24,10 @@ fn parse_arguments(raw_args: &[String]) -> ParsedArgs {
         }
     }
 
-    ParsedArgs { named_args, passthrough_args }
+    ParsedArgs {
+        named_args,
+        passthrough_args,
+    }
 }
 
 /// Resolves a command string template with user-provided arguments.
@@ -44,7 +47,10 @@ pub fn resolve_arguments(command_template: &str, raw_args: &[String]) -> Result<
     // Check for any remaining, unresolved placeholders
     let re = Regex::new(r"\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}")?;
     if let Some(unresolved) = re.find(&resolved_command) {
-        bail!("The following placeholder was not provided: {}", unresolved.as_str());
+        bail!(
+            "The following placeholder was not provided: {}",
+            unresolved.as_str()
+        );
     }
 
     // Append passthrough arguments
