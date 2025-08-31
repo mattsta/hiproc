@@ -176,19 +176,26 @@ You will need to enter your username to fetch your commands.
 ### Quick Start Examples
 
 ```bash
-# Quick-save the last command you ran
+# Save commands with smart auto-detection (NEW!)
+$ hp save "cargo build --release"        # Auto-detects as 'cargo' in current project namespace
+$ hp save "ls -latrh" list               # Saves as 'list' with auto-detected namespace
+
+# Execute and save in one step (NEW!)
+$ hp do git status                        # Executes 'git status' and saves as 'git/status'  
+$ hp x npm test                           # Short alias for 'do' command
+
+# Quick-save from shell history
 $ npm run build
 $ hp quick-save "build"                   # Saves "npm run build" with smart namespace detection
 
-# Execute by ID (fastest)
-$ hp exec 123                             # or just: hp 123
+# Execute stored commands
+$ hp 123                                  # Execute command ID 123 (fastest)
+$ hp run deploy                           # Smart contextual execution of "deploy"  
+$ hp webapp deploy                        # Traditional explicit execution
 
-# Smart contextual execution
-$ hp run deploy                           # Finds best "deploy" command for current context
-$ hp run test --scope team                # Find team's "test" command
-
-# Traditional explicit execution
-$ hp webapp deploy                        # Execute "deploy" from "webapp" namespace
+# Browse and search
+$ hp list                                 # Show all your commands in a table
+$ hp search "git"                         # Search for commands containing "git"
 ```
 
 ### Core Execution Commands

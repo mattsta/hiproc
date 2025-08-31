@@ -21,7 +21,7 @@ mod templating_test;
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 #[clap(subcommand_required = true, arg_required_else_help = true)]
-#[clap(after_help = "DIRECT EXECUTION:\n  hp <id>              Execute command by ID\n  hp <namespace> <name> Execute command by namespace and name\n\nExamples:\n  hp 123               Run command ID 123\n  hp rust build        Run 'build' command from 'rust' namespace\n  hp save \"cargo build\" build  Save command with auto-detected namespace")]
+#[clap(after_help = "QUICK WORKFLOWS:\n  hp save \"command\"        Save command with auto-detected name/namespace\n  hp save \"command\" name   Save command with custom name, auto-detect namespace\n  hp do \"command\"          Execute and save command in one step (alias: hp x)\n  hp quick-save name       Save last shell command with custom name\n\nDIRECT EXECUTION:\n  hp <id>                  Execute stored command by ID\n  hp <namespace> <name>    Execute stored command by namespace and name\n\nExamples:\n  hp save \"cargo build\"             # Saves as 'cargo' in current project namespace\n  hp save \"ls -la\" list             # Saves as 'list' with auto-detected namespace\n  hp do git status                  # Executes and saves 'git status' as 'git/status'\n  hp 123                            # Run stored command ID 123\n  hp rust build                     # Run 'build' command from 'rust' namespace")]
 struct Cli {
     #[clap(subcommand)]
     command: Commands,
@@ -36,13 +36,15 @@ enum Commands {
         #[clap(long)]
         user: Option<String>,
     },
-    /// Save a new command
+    /// Save a new command with smart defaults
     Save {
+        /// The command string to save
         command_string: String,
+        /// Optional name for the command (auto-detected from command if not provided)
+        name: Option<String>,
+        /// Optional namespace for the command (auto-detected from context if not provided)
         #[clap(long)]
-        name: String,
-        #[clap(long)]
-        namespace: String,
+        namespace: Option<String>,
         #[clap(long, default_value = "personal")]
         scope: String,
     },
@@ -134,7 +136,21 @@ enum Commands {
         #[clap(long)]
         namespace: Option<String>,
     },
-    /// Execute a shell command and save it to the ad-hoc namespace
+    /// Execute and save a command with smart defaults
+    #[clap(alias = "x")]
+    Do {
+        /// The command to execute and save
+        #[clap(required = true, num_args = 1..)]
+        command_parts: Vec<String>,
+        /// Optional name for the command (auto-detected if not provided)
+        #[clap(long)]
+        name: Option<String>,
+        /// Optional namespace for the command (auto-detected if not provided)
+        #[clap(long)]
+        namespace: Option<String>,
+    },
+    /// Execute a shell command and save it (legacy, use run-save instead)
+    #[clap(hide = true)]
     Shell {
         #[clap(required = true, num_args = 1..)]
         command_parts: Vec<String>,
@@ -143,6 +159,39 @@ enum Commands {
     /// Recall and execute a command by namespace and name, or execute by ID.
     #[clap(external_subcommand)]
     Recall(Vec<String>),
+}
+
+/// Auto-detect a command name from the command string.
+/// 
+/// This function extracts a reasonable name from a command string by taking the first word
+/// and cleaning it up.
+fn detect_name_from_command(command_string: &str) -> String {
+    // Split the command and take the first word (the main command)
+    let first_word = command_string
+        .trim()
+        .split_whitespace()
+        .next()
+        .unwrap_or("command");
+    
+    // Remove common path prefixes and get just the command name
+    let command_name = if first_word.contains('/') {
+        // Take the last component of a path
+        first_word.split('/').last().unwrap_or(first_word)
+    } else {
+        first_word
+    };
+    
+    // Clean up the name (remove extensions, special chars, etc.)
+    let clean_name = command_name
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '-' || *c == '_')
+        .collect::<String>();
+    
+    if clean_name.is_empty() {
+        "command".to_string()
+    } else {
+        clean_name
+    }
 }
 
 /// Detect namespace from current directory context.
@@ -332,10 +381,19 @@ async fn main() -> Result<()> {
         Commands::Save { command_string, name, namespace, scope } => {
             let cwd = env::current_dir()?.to_str().context("Invalid CWD")?.to_string();
             let hostname = gethostname::gethostname().to_str().context("Invalid hostname")?.to_string();
+            
+            // Auto-detect name if not provided
+            let final_name = name.unwrap_or_else(|| detect_name_from_command(&command_string));
+            
+            // Auto-detect namespace if not provided
+            let final_namespace = namespace.unwrap_or_else(|| {
+                detect_namespace_from_context().unwrap_or_else(|| "ad-hoc".to_string())
+            });
+            
             let new_command = api::NewCommand {
-                command_string,
-                name,
-                namespace,
+                command_string: command_string.clone(),
+                name: final_name.clone(),
+                namespace: final_namespace.clone(),
                 user: Some(user),
                 cwd: Some(cwd),
                 hostname: Some(hostname),
@@ -344,9 +402,9 @@ async fn main() -> Result<()> {
             let cmd = api_client.save_command(new_command).await.context("Failed to save command to server")?;
             
             if cmd.is_new {
-                println!("Saved command '{}'", cmd.name);
+                println!("✓ Saved '{}' as '{}/{}' (ID: {})", command_string, final_namespace, final_name, cmd.id);
             } else {
-                println!("Command already exists.");
+                println!("Command already exists as '{}/{}' (ID: {})", final_namespace, final_name, cmd.id);
             }
         }
         Commands::Search { query, namespace, scope, user } => {
@@ -745,22 +803,60 @@ async fn main() -> Result<()> {
                 }
             }
         }
-        Commands::Shell { command_parts } => {
+        Commands::Do { command_parts, name, namespace } => {
             let command_string = shlex::try_join(command_parts.iter().map(|s| s.as_str())).context("Failed to join command parts")?;
-            let name = command_parts.first().context("Cannot run an empty command")?.to_string();
+            
+            // Use provided name or auto-detect
+            let final_name = name.unwrap_or_else(|| detect_name_from_command(&command_string));
+            
+            // Use provided namespace or auto-detect
+            let final_namespace = namespace.unwrap_or_else(|| {
+                detect_namespace_from_context().unwrap_or_else(|| "ad-hoc".to_string())
+            });
             
             let cwd = env::current_dir()?.to_str().context("Invalid CWD")?.to_string();
             let hostname = gethostname::gethostname().to_str().context("Invalid hostname")?.to_string();
             let new_command = api::NewCommand {
                 command_string: command_string.clone(),
-                name,
-                namespace: "ad-hoc".to_string(),
+                name: final_name.clone(),
+                namespace: final_namespace.clone(),
                 user: Some(user.clone()),
                 cwd: Some(cwd.clone()),
                 hostname: Some(hostname.clone()),
                 scope: "personal".to_string(),
             };
             let saved_command = api_client.save_command(new_command).await.context("Failed to save command to server")?;
+
+            println!("✓ Saved and executing '{}' as '{}/{}' (ID: {})", command_string, final_namespace, final_name, saved_command.id);
+
+            // Execute using our tracking function
+            execute_command_with_tracking(
+                &api_client, &saved_command, &user, &hostname, &cwd, &command_string, "do", &[]
+            ).await?;
+        }
+        Commands::Shell { command_parts } => {
+            let command_string = shlex::try_join(command_parts.iter().map(|s| s.as_str())).context("Failed to join command parts")?;
+            
+            // Use smart name detection instead of just first word
+            let name = detect_name_from_command(&command_string);
+            
+            // Use smart namespace detection instead of hardcoded "ad-hoc"
+            let namespace = detect_namespace_from_context().unwrap_or_else(|| "ad-hoc".to_string());
+            
+            let cwd = env::current_dir()?.to_str().context("Invalid CWD")?.to_string();
+            let hostname = gethostname::gethostname().to_str().context("Invalid hostname")?.to_string();
+            let new_command = api::NewCommand {
+                command_string: command_string.clone(),
+                name: name.clone(),
+                namespace: namespace.clone(),
+                user: Some(user.clone()),
+                cwd: Some(cwd.clone()),
+                hostname: Some(hostname.clone()),
+                scope: "personal".to_string(),
+            };
+            let saved_command = api_client.save_command(new_command).await.context("Failed to save command to server")?;
+
+            println!("✓ Saved and executing '{}' as '{}/{}' (ID: {})", command_string, namespace, name, saved_command.id);
 
             // Execute using our tracking function
             execute_command_with_tracking(
@@ -825,6 +921,32 @@ mod tests {
     use super::*;
     use chrono::Utc;
 
+    #[test]
+    fn test_detect_name_from_command() {
+        // Test basic command
+        assert_eq!(detect_name_from_command("ls -la"), "ls");
+        
+        // Test path-based command
+        assert_eq!(detect_name_from_command("/usr/bin/git status"), "git");
+        assert_eq!(detect_name_from_command("./scripts/build.sh"), "build");
+        
+        // Test complex command
+        assert_eq!(detect_name_from_command("cargo build --release"), "cargo");
+        assert_eq!(detect_name_from_command("npm run dev"), "npm");
+        
+        // Test command with special characters
+        assert_eq!(detect_name_from_command("python3.11 -m pip install uv"), "python3");
+        
+        // Test empty/edge cases
+        assert_eq!(detect_name_from_command(""), "command");
+        assert_eq!(detect_name_from_command("   "), "command");
+        assert_eq!(detect_name_from_command("@#$%"), "command");
+        
+        // Test commands with extensions
+        assert_eq!(detect_name_from_command("script.py arg1 arg2"), "script");
+        assert_eq!(detect_name_from_command("./test.sh"), "test");
+    }
+    
     #[test]
     fn test_format_find_output() {
         let commands = vec![
