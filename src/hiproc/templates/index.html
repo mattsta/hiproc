@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>hiproc Command Viewer</title>
+    <style>
+        :root {
+            --bg-color: #1a1b26;
+            --fg-color: #c0caf5;
+            --border-color: #414868;
+            --input-bg: #24283b;
+            --hover-bg: #292e42;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--fg-color);
+            margin: 0;
+            padding: 2rem;
+        }
+        h1 {
+            text-align: center;
+            color: #bb9af7;
+        }
+        #search-container {
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+        }
+        input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background-color: var(--input-bg);
+            color: var(--fg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        th {
+            color: #7aa2f7;
+        }
+        tbody tr:hover {
+            background-color: var(--hover-bg);
+        }
+        .command-string {
+            font-family: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", monospace;
+            background-color: var(--input-bg);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <h1>hiproc Command Viewer</h1>
+    <div id="search-container">
+        <input type="text" id="user-input" placeholder="Enter your username to fetch commands...">
+        <input type="text" id="search-input" placeholder="Filter commands...">
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Namespace</th>
+                <th>Name</th>
+                <th>User</th>
+                <th>Hostname</th>
+                <th>Scope</th>
+                <th>Command</th>
+            </tr>
+        </thead>
+        <tbody id="commands-table-body">
+            <!-- Rows will be inserted here by JavaScript -->
+        </tbody>
+    </table>
+
+    <script>
+        const userInput = document.getElementById('user-input');
+        const searchInput = document.getElementById('search-input');
+        const tableBody = document.getElementById('commands-table-body');
+        let allCommands = [];
+
+        async function fetchCommands(user) {
+            if (!user) {
+                allCommands = [];
+                renderTable();
+                return;
+            }
+            try {
+                const response = await fetch(`/commands/all?user=${encodeURIComponent(user)}`);
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                allCommands = await response.json();
+                renderTable();
+            } catch (error) {
+                console.error('Failed to fetch commands:', error);
+                tableBody.innerHTML = '<tr><td colspan="6">Failed to load commands. Is the user correct?</td></tr>';
+            }
+        }
+
+        function renderTable() {
+            const filterText = searchInput.value.toLowerCase();
+            const filteredCommands = allCommands.filter(cmd => 
+                cmd.command_string.toLowerCase().includes(filterText) ||
+                cmd.name.toLowerCase().includes(filterText) ||
+                cmd.namespace.toLowerCase().includes(filterText)
+            );
+
+            tableBody.innerHTML = '';
+            if (filteredCommands.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="6">No commands found.</td></tr>';
+                return;
+            }
+
+            filteredCommands.forEach(cmd => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${cmd.namespace}</td>
+                    <td>${cmd.name}</td>
+                    <td>${cmd.user || ''}</td>
+                    <td>${cmd.hostname || ''}</td>
+                    <td>${cmd.scope}</td>
+                    <td><code class="command-string">${cmd.command_string}</code></td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        userInput.addEventListener('change', () => fetchCommands(userInput.value));
+        searchInput.addEventListener('input', renderTable);
+    </script>
+</body>
+</html>
