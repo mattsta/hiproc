@@ -43,13 +43,14 @@ Written with a combination of gemini 2.5 pro cli and claude sonnet 4 cli.
 
 `hiproc` is a tool for saving, recalling, and organizing your command-line commands. It uses a central server to store your commands, making them accessible from any of your machines. A fast, native client (`hp`) provides a seamless way to interact with your command history.
 
-The key feature of `hiproc` is **contextual recall**. When you save a command, `hiproc` remembers *who* you were, *what machine* you were on, and *what directory* you were in. When you recall a command, it uses this context to find the most specific match first, preventing conflicts and ensuring you always run the right command for the job.
+The key feature of `hiproc` is **contextual recall**. When you save a command, `hiproc` remembers _who_ you were, _what machine_ you were on, and _what directory_ you were in. When you recall a command, it uses this context to find the most specific match first, preventing conflicts and ensuring you always run the right command for the job.
 
 ### Automated Setup (Recommended)
 
 The fastest way to get started is with our automated setup script. It handles everything: building the binary, setting up Python environment, installing configuration, and setting up shell completions.
 
 **Prerequisites:**
+
 - Rust toolchain: Install via [rustup.rs](https://rustup.rs/)
 - Python 3.10+ with pip
 - uv (will be installed automatically if not present)
@@ -57,15 +58,19 @@ The fastest way to get started is with our automated setup script. It handles ev
 **One-Command Setup:**
 
 1. **See what will be installed (dry-run):**
+
    ```bash
    ./setup.sh
    ```
+
    This shows you exactly what the script will do without making any changes.
 
 2. **Install hiproc:**
+
    ```bash
    ./setup.sh --install
    ```
+
    This will:
    - Build the Rust `hp` binary
    - Set up Python environment with `uv sync`
@@ -74,9 +79,11 @@ The fastest way to get started is with our automated setup script. It handles ev
    - Set up shell completions (optional)
 
 3. **Start the server:**
+
    ```bash
    uv run hiproc
    ```
+
    The server runs on `http://127.0.0.1:8128` by default.
 
 4. **Test the client:**
@@ -85,6 +92,7 @@ The fastest way to get started is with our automated setup script. It handles ev
    ```
 
 **Non-Interactive Setup:**
+
 ```bash
 ./setup.sh --install --yes    # Use defaults, skip prompts
 ```
@@ -98,6 +106,7 @@ The `hp` client loads configuration from three locations (in order of precedence
 3. **Local Config:** `./hiproc.toml` (project-specific, highest precedence)
 
 **Example config file:**
+
 ```toml
 server_url = "http://127.0.0.1:8128"
 ```
@@ -110,6 +119,7 @@ If you prefer manual setup or need custom configuration:
 <summary>Click to expand manual setup instructions</summary>
 
 #### 1. Python Server Setup
+
 ```bash
 # Install dependencies
 uv sync
@@ -122,6 +132,7 @@ uv run hiproc -- --host 0.0.0.0 --port 9999
 ```
 
 #### 2. Rust Client Setup
+
 ```bash
 # Build the binary
 cd rust/hp
@@ -132,7 +143,9 @@ cp target/release/hp ~/bin/hp  # or /usr/local/bin/hp
 ```
 
 #### 3. Configure Client
+
 Create `~/.config/hiproc/config.toml`:
+
 ```toml
 server_url = "http://127.0.0.1:8128"
 ```
@@ -155,6 +168,7 @@ To remove hiproc from your system:
 ```
 
 This removes:
+
 - Configuration files (`~/.config/hiproc/` and `~/bin/hiproc.toml`)
 - Binary (`~/bin/hp`)
 - Shell completions (optional)
@@ -168,6 +182,7 @@ You will need to enter your username to fetch your commands.
 ## Full Command-Line Usage
 
 **Important**: hiproc now features **intelligent command execution** with multiple ways to run commands:
+
 - **Direct ID execution**: `hp exec 123` or `hp 123` for fastest access
 - **Smart contextual matching**: `hp run deploy` finds the best "deploy" command for your context
 - **Traditional namespace/name**: `hp webapp deploy` for explicit targeting
@@ -181,7 +196,7 @@ $ hp save "cargo build --release"        # Auto-detects as 'cargo' in current pr
 $ hp save "ls -latrh" list               # Saves as 'list' with auto-detected namespace
 
 # Execute and save in one step (NEW!)
-$ hp do git status                        # Executes 'git status' and saves as 'git/status'  
+$ hp do git status                        # Executes 'git status' and saves as 'git/status'
 $ hp x npm test                           # Short alias for 'do' command
 
 # Quick-save from shell history
@@ -190,7 +205,7 @@ $ hp quick-save "build"                   # Saves "npm run build" with smart nam
 
 # Execute stored commands
 $ hp 123                                  # Execute command ID 123 (fastest)
-$ hp run deploy                           # Smart contextual execution of "deploy"  
+$ hp run deploy                           # Smart contextual execution of "deploy"
 $ hp webapp deploy                        # Traditional explicit execution
 
 # Browse and search
@@ -235,9 +250,10 @@ $ hp run deploy --prod -- --verbose       # Everything after -- goes to the comm
 ```
 
 **Smart Matching Priority:**
+
 1. Exact context match (same user + hostname + directory + namespace)
 2. User + hostname + namespace match
-3. User + hostname + directory match  
+3. User + hostname + directory match
 4. Directory pattern matching (similar project structure)
 5. Namespace preference (most used in namespace)
 6. Frequency-based (most recently/frequently used)
@@ -298,11 +314,13 @@ $ hp quick-save "test" --namespace "rust-project"
 ```
 
 **Smart Namespace Detection:**
+
 - Detects project name from `package.json`, `Cargo.toml`, `pyproject.toml`, `pom.xml`
 - Falls back to git repository name or directory name
 - Saves you from typing repetitive namespace names
 
 **Shell Integration:**
+
 - Supports Bash, Zsh, and Fish shells
 - Automatically detects your shell type
 - Reads from standard history files
@@ -383,6 +401,7 @@ $ hp here --project                       # Detect project type and suggest name
 ```
 
 **Example Output:**
+
 ```
 Commands relevant to current context (/home/user/projects/webapp):
   1. [123] build: npm run build (used 15 times, last: 03/15 14:30)
@@ -406,6 +425,7 @@ $ hp suggest --project-type rust          # Suggestions tailored for Rust projec
 ```
 
 **Example Output:**
+
 ```
 Intelligent command suggestions based on your context:
   1. [126] webapp/deploy: kubectl apply -f k8s/
@@ -429,6 +449,7 @@ $ hp similar 123 --limit 8                # Up to 8 similar commands
 ```
 
 **Example Output:**
+
 ```
 Commands similar to ID 123:
   1. [124] webapp/build-prod: npm run build:production
@@ -445,7 +466,7 @@ Get detailed analytics about your command usage patterns. Understand which comma
 
 ```bash
 # Get analytics for last 30 days (default)
-$ hp analytics                            
+$ hp analytics
 
 # Get analytics for specific time period
 $ hp analytics --days 7                   # Last 7 days
@@ -453,6 +474,7 @@ $ hp analytics --days 90                  # Last 90 days
 ```
 
 **Example Output:**
+
 ```
 Execution Analytics for user: alice
 Period: Last 30 days
@@ -469,7 +491,7 @@ Most Used Commands:
 
 Execution Methods:
   id: 89        # Direct ID execution (hp 123)
-  name: 45      # Smart name matching (hp run build)  
+  name: 45      # Smart name matching (hp run build)
   namespace_name: 22  # Traditional recall (hp webapp build)
 ```
 
@@ -548,6 +570,7 @@ To make recalling commands even faster, you can enable tab completion for your s
 **Installation:**
 
 1.  Generate the completion script for your shell:
+
     ```bash
     # For Bash
     hp generate-completions bash > /usr/local/etc/bash_completion.d/hp
@@ -558,6 +581,7 @@ To make recalling commands even faster, you can enable tab completion for your s
     # For Fish
     hp generate-completions fish > ~/.config/fish/completions/hp.fish
     ```
+
 2.  Restart your shell for the changes to take effect.
 
 Now you can type `hp <namespace> <TAB>` to see a list of available commands.
@@ -695,7 +719,7 @@ $ hp server connect HOST:prod-db-1.example.com
 
 ### Passthrough Arguments
 
-Any arguments you provide that are *not* in the `KEY:VALUE` format will be appended to the end of the command. This is great for commands that take optional flags.
+Any arguments you provide that are _not_ in the `KEY:VALUE` format will be appended to the end of the command. This is great for commands that take optional flags.
 
 ```bash
 # Save a generic git log command
@@ -708,7 +732,7 @@ $ hp git log -- --author="Matt" -p
 
 ### Secrets Management: `{{SECRET_NAME}}`
 
-Any placeholder that you *don't* provide a value for will be treated as a secret. `hiproc` will first look for an environment variable with the same name (e.g., `API_KEY` for `{{API_KEY}}`). If it's not found, it will securely prompt you to enter the value in the terminal.
+Any placeholder that you _don't_ provide a value for will be treated as a secret. `hiproc` will first look for an environment variable with the same name (e.g., `API_KEY` for `{{API_KEY}}`). If it's not found, it will securely prompt you to enter the value in the terminal.
 
 ```bash
 # Save a command with a secret API key
