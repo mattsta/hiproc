@@ -40,6 +40,17 @@ def create_command(command: schemas.CommandCreate, db: Session = Depends(get_db)
     return crud.create_command(db=db, command=command)
 
 
+@app.post("/commands/save", response_model=schemas.Command)
+def save_command(command: schemas.CommandCreate, db: Session = Depends(get_db)):
+    """
+    Save a command, preventing duplicate names within the same namespace for a user.
+
+    If a command with the same name already exists for this user in this namespace,
+    it will be updated with the new information rather than creating a duplicate.
+    """
+    return crud.create_or_update_command(db=db, command=command)
+
+
 @app.get("/commands/", response_model=list[schemas.Command])
 def get_commands(
     q: str | None = None,

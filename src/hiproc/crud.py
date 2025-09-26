@@ -170,6 +170,56 @@ def create_command(db: Session, command: schemas.CommandCreate):
     return db_command
 
 
+def create_or_update_command(db: Session, command: schemas.CommandCreate):
+    """
+    Create a new command or update an existing one with the same name.
+
+    This prevents duplicate names within the same namespace for a user by
+    either updating the existing command or deleting it first and creating
+    a new one with the updated information.
+    """
+    command_data = command.model_dump()
+
+    # Check for existing command with the same name, namespace, and user
+    existing_command = (
+        db.query(models.Command)
+        .filter(
+            and_(
+                models.Command.name == command_data["name"],
+                models.Command.namespace == command_data["namespace"],
+                models.Command.user == command_data["user"],
+            )
+        )
+        .first()
+    )
+
+    if existing_command:
+        # Store the old command string for reporting
+        old_command_string = existing_command.command_string
+
+        # Update the existing command with new information
+        existing_command.command_string = command_data["command_string"]
+        existing_command.cwd = command_data["cwd"]
+        existing_command.hostname = command_data["hostname"]
+        existing_command.scope = command_data["scope"]
+        existing_command.is_new = False
+
+        # Add the old command string as an attribute for the client to access
+        existing_command.old_command_string = old_command_string
+
+        db.commit()
+        db.refresh(existing_command)
+        return existing_command
+
+    # If no existing command with same name, create a new one
+    db_command = models.Command(**command_data)
+    db.add(db_command)
+    db.commit()
+    db.refresh(db_command)
+    db_command.is_new = True
+    return db_command
+
+
 def update_command(
     db: Session, command_id: int, user: str, command_update: schemas.CommandUpdate
 ):

@@ -34,6 +34,17 @@ impl ApiClient {
         Ok(res.error_for_status()?.json().await?)
     }
 
+    /// Saves a command, preventing duplicate names within the same namespace for a user.
+    pub async fn save_command_no_duplicates(&self, new_command: NewCommand) -> Result<Command> {
+        let client = reqwest::Client::new();
+        let res = client
+            .post(format!("{}/commands/save", self.base_url))
+            .json(&new_command)
+            .send()
+            .await?;
+        Ok(res.error_for_status()?.json().await?)
+    }
+
     /// Searches for commands on the server.
     pub async fn get_commands(
         &self,
@@ -332,6 +343,8 @@ pub struct Command {
     pub use_count: i32,
     #[serde(default)]
     pub is_new: bool,
+    #[serde(default)]
+    pub old_command_string: Option<String>,
 }
 
 /// Represents a new command to be sent to the server.

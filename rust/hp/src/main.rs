@@ -436,7 +436,7 @@ async fn main() -> Result<()> {
                 scope,
             };
             let cmd = api_client
-                .save_command(new_command)
+                .save_command_no_duplicates(new_command)
                 .await
                 .context("Failed to save command to server")?;
 
@@ -446,10 +446,19 @@ async fn main() -> Result<()> {
                     command_string, final_namespace, final_name, cmd.id
                 );
             } else {
-                println!(
-                    "Command already exists as '{}/{}' (ID: {})",
-                    final_namespace, final_name, cmd.id
-                );
+                if let Some(old_cmd) = &cmd.old_command_string {
+                    println!(
+                        "✓ Updated existing command '{}/{}' (ID: {})",
+                        final_namespace, final_name, cmd.id
+                    );
+                    println!("  Replaced: '{}'", old_cmd);
+                    println!("  With:     '{}'", command_string);
+                } else {
+                    println!(
+                        "✓ Updated existing command '{}/{}' with new command string (ID: {})",
+                        final_namespace, final_name, cmd.id
+                    );
+                }
             }
         }
         Commands::Search {
@@ -1061,14 +1070,30 @@ async fn main() -> Result<()> {
                 scope: "personal".to_string(),
             };
             let saved_command = api_client
-                .save_command(new_command)
+                .save_command_no_duplicates(new_command)
                 .await
                 .context("Failed to save command to server")?;
 
-            println!(
-                "✓ Saved and executing '{}' as '{}/{}' (ID: {})",
-                command_string, final_namespace, final_name, saved_command.id
-            );
+            if saved_command.is_new {
+                println!(
+                    "✓ Saved and executing '{}' as '{}/{}' (ID: {})",
+                    command_string, final_namespace, final_name, saved_command.id
+                );
+            } else {
+                if let Some(old_cmd) = &saved_command.old_command_string {
+                    println!(
+                        "✓ Updated existing command '{}/{}' and executing (ID: {})",
+                        final_namespace, final_name, saved_command.id
+                    );
+                    println!("  Replaced: '{}'", old_cmd);
+                    println!("  With:     '{}'", command_string);
+                } else {
+                    println!(
+                        "✓ Updated existing command '{}/{}' and executing (ID: {})",
+                        final_namespace, final_name, saved_command.id
+                    );
+                }
+            }
 
             // Execute using our tracking function
             execute_command_with_tracking(

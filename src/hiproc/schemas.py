@@ -121,6 +121,7 @@ class Command(CommandBase):
     last_used_at: datetime | None = None
     use_count: int
     is_new: bool = False
+    old_command_string: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
